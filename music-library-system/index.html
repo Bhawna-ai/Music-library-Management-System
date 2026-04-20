@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Library Management System — DBMS Capstone Project</title>
+    <meta name="description" content="A modern Music Library Management System demonstrating relational database concepts including normalization, joins, views, stored procedures, and triggers.">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">🎵</div>
+            <div class="brand-text">
+                <h2>MusicLib</h2>
+                <span>DBMS Project</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-label">Main</div>
+            <button class="nav-item active" data-section="dashboard" id="nav-dashboard">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-item" data-section="artists" id="nav-artists">
+                <span class="nav-icon">🎤</span>
+                <span>Artists</span>
+            </button>
+            <button class="nav-item" data-section="albums" id="nav-albums">
+                <span class="nav-icon">💿</span>
+                <span>Albums</span>
+            </button>
+            <button class="nav-item" data-section="tracks" id="nav-tracks">
+                <span class="nav-icon">🎶</span>
+                <span>Tracks</span>
+            </button>
+            <button class="nav-item" data-section="playlists" id="nav-playlists">
+                <span class="nav-icon">📋</span>
+                <span>Playlists</span>
+            </button>
+
+            <div class="nav-label">Explore</div>
+            <button class="nav-item" data-section="search" id="nav-search">
+                <span class="nav-icon">🔍</span>
+                <span>Search</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <button class="nav-item" onclick="resetDatabase()">
+                <span class="nav-icon">🔄</span>
+                <span>Reset Database</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <div class="main-wrapper">
+
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle menu">☰</button>
+                <div>
+                    <div class="page-title" id="pageTitle">Dashboard</div>
+                    <div class="page-title-sub" id="pageTitleSub">Overview of your music library</div>
+                </div>
+            </div>
+            <div class="top-bar-right">
+                <div class="top-search">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    <input type="text" placeholder="Quick search..." id="globalSearch" onkeyup="handleGlobalSearch(event)">
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+
+            <!-- ==================== DASHBOARD ==================== -->
+            <section id="dashboard" class="section active">
+                <div class="section-header">
+                    <h2>Dashboard</h2>
+                    <p>Overview of your entire music library at a glance</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎤</div>
+                        <div class="stat-label">Total Artists</div>
+                        <div class="stat-value" id="totalArtists">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎶</div>
+                        <div class="stat-label">Total Tracks</div>
+                        <div class="stat-value" id="totalTracks">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💿</div>
+                        <div class="stat-label">Total Albums</div>
+                        <div class="stat-value" id="totalAlbums">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-label">Total Playlists</div>
+                        <div class="stat-value" id="totalPlaylists">0</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-actions">
+                    <button class="btn btn-primary btn-lg" onclick="loadSampleData()">
+                        ✨ Load Sample Data
+                    </button>
+                    <button class="btn btn-secondary btn-lg" onclick="resetDatabase()">
+                        🔄 Reset Database
+                    </button>
+                </div>
+            </section>
+
+            <!-- ==================== ARTISTS ==================== -->
+            <section id="artists" class="section">
+                <div class="section-header">
+                    <h2>Manage Artists</h2>
+                    <p>Add, edit, and manage your music artists</p>
+                </div>
+
+                <div class="form-card">
+                    <div class="form-card-title">
+                        <span class="card-icon">➕</span> Add New Artist
+                    </div>
+                    <form id="artistForm" onsubmit="addArtist(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="artistName">Artist Name</label>
+                                <input type="text" id="artistName" placeholder="e.g. Taylor Swift" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="artistCountry">Country</label>
+                                <input type="text" id="artistCountry" placeholder="e.g. United States">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="artistBio">Biography</label>
+                                <textarea id="artistBio" rows="2" placeholder="Brief biography of the artist..."></textarea>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Add Artist</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="glass-card">
+                    <div class="glass-card-header">
+                        <div class="glass-card-title">
+                            <span class="card-icon">🎤</span> All Artists
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="artistsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Country</th>
+                                    <th>Bio</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== ALBUMS ==================== -->
+            <section id="albums" class="section">
+                <div class="section-header">
+                    <h2>Manage Albums</h2>
+                    <p>Organize album collections for each artist</p>
+                </div>
+
+                <div class="form-card">
+                    <div class="form-card-title">
+                        <span class="card-icon">➕</span> Add New Album
+                    </div>
+                    <form id="albumForm" onsubmit="addAlbum(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="albumName">Album Name</label>
+                                <input type="text" id="albumName" placeholder="e.g. Abbey Road" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="albumArtist">Artist</label>
+                                <select id="albumArtist" required>
+                                    <option value="">Select an artist</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="albumYear">Release Year</label>
+                                <input type="number" id="albumYear" placeholder="e.g. 2024" min="1900" max="2100">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Add Album</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="glass-card">
+                    <div class="glass-card-header">
+                        <div class="glass-card-title">
+                            <span class="card-icon">💿</span> All Albums
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="albumsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Artist</th>
+                                    <th>Year</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TRACKS ==================== -->
+            <section id="tracks" class="section">
+                <div class="section-header">
+                    <h2>Manage Tracks</h2>
+                    <p>Add and manage individual songs in your library</p>
+                </div>
+
+                <div class="form-card">
+                    <div class="form-card-title">
+                        <span class="card-icon">➕</span> Add New Track
+                    </div>
+                    <form id="trackForm" onsubmit="addTrack(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="trackTitle">Track Title</label>
+                                <input type="text" id="trackTitle" placeholder="e.g. Bohemian Rhapsody" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="trackArtist">Artist</label>
+                                <select id="trackArtist" required>
+                                    <option value="">Select an artist</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="trackAlbum">Album</label>
+                                <select id="trackAlbum" required>
+                                    <option value="">Select an album</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="trackGenre">Genre</label>
+                                <select id="trackGenre" required>
+                                    <option value="">Select a genre</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="trackDuration">Duration (seconds)</label>
+                                <input type="number" id="trackDuration" placeholder="e.g. 240" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="trackReleaseDate">Release Date</label>
+                                <input type="date" id="trackReleaseDate">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Add Track</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="glass-card">
+                    <div class="glass-card-header">
+                        <div class="glass-card-title">
+                            <span class="card-icon">🎶</span> All Tracks
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="tracksTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Artist</th>
+                                    <th>Album</th>
+                                    <th>Genre</th>
+                                    <th>Duration</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== PLAYLISTS ==================== -->
+            <section id="playlists" class="section">
+                <div class="section-header">
+                    <h2>Manage Playlists</h2>
+                    <p>Create playlists and add your favorite tracks</p>
+                </div>
+
+                <div class="form-card">
+                    <div class="form-card-title">
+                        <span class="card-icon">➕</span> Create New Playlist
+                    </div>
+                    <form id="playlistForm" onsubmit="addPlaylist(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="playlistName">Playlist Name</label>
+                                <input type="text" id="playlistName" placeholder="e.g. My Favorites" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="playlistDesc">Description</label>
+                                <textarea id="playlistDesc" rows="2" placeholder="What's this playlist about?"></textarea>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Create Playlist</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="form-card">
+                    <div class="form-card-title">
+                        <span class="card-icon">🔗</span> Add Tracks to Playlist
+                    </div>
+                    <form id="addToPlaylistForm" onsubmit="addTrackToPlaylist(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="selectPlaylist">Select Playlist</label>
+                                <select id="selectPlaylist" required>
+                                    <option value="">Choose a playlist</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="selectTrack">Select Track</label>
+                                <select id="selectTrack" required>
+                                    <option value="">Choose a track</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Add to Playlist</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="glass-card">
+                    <div class="glass-card-header">
+                        <div class="glass-card-title">
+                            <span class="card-icon">📋</span> All Playlists
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="playlistsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Tracks</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="playlistDetailsContainer" class="glass-card playlist-details">
+                    <div class="glass-card-header">
+                        <div class="glass-card-title">
+                            <span class="card-icon">🎵</span>
+                            <span id="playlistDetailsTitle">Playlist Details</span>
+                        </div>
+                        <button class="btn btn-ghost" onclick="closePlaylistDetails()">✕ Close</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="playlistDetailsTable">
+                            <thead>
+                                <tr>
+                                    <th>Track Title</th>
+                                    <th>Artist</th>
+                                    <th>Duration</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== SEARCH ==================== -->
+            <section id="search" class="section">
+                <div class="section-header">
+                    <h2>Search Music Library</h2>
+                    <p>Find tracks by title, artist, genre, or view statistics</p>
+                </div>
+
+                <div class="search-block">
+                    <h3>🔤 Search by Title</h3>
+                    <div class="search-inline">
+                        <div class="form-group">
+                            <input type="text" id="searchTitle" placeholder="Enter track title...">
+                        </div>
+                        <button class="btn btn-primary" onclick="searchByTitle()">Search</button>
+                    </div>
+                    <div id="searchTitleResults" class="results-container"></div>
+                </div>
+
+                <div class="search-block">
+                    <h3>🎤 Search by Artist</h3>
+                    <div class="search-inline">
+                        <div class="form-group">
+                            <input type="text" id="searchArtist" placeholder="Enter artist name...">
+                        </div>
+                        <button class="btn btn-primary" onclick="searchByArtist()">Search</button>
+                    </div>
+                    <div id="searchArtistResults" class="results-container"></div>
+                </div>
+
+                <div class="search-block">
+                    <h3>🎸 Search by Genre</h3>
+                    <div class="search-inline">
+                        <div class="form-group">
+                            <select id="searchGenre">
+                                <option value="">Select a genre</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="searchByGenre()">Search</button>
+                    </div>
+                    <div id="searchGenreResults" class="results-container"></div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="search-block">
+                    <h3>📊 Genre Statistics</h3>
+                    <button class="btn btn-primary" onclick="showGenreStats()" style="margin-bottom:12px;">Show Statistics</button>
+                    <div id="genreStatsResults" class="results-container"></div>
+                </div>
+
+                <div class="search-block">
+                    <h3>📈 Artist Statistics</h3>
+                    <button class="btn btn-primary" onclick="showArtistStats()" style="margin-bottom:12px;">Show Statistics</button>
+                    <div id="artistStatsResults" class="results-container"></div>
+                </div>
+            </section>
+
+            <!-- ==================== SQL QUERIES ==================== -->
+            <section id="sql" class="section">
+                <div class="section-header">
+                    <h2>SQL Queries & Schema</h2>
+                    <p>All SQL used in this DBMS capstone project — schema, queries, views, procedures, and triggers</p>
+                </div>
+
+                <div class="sql-tabs" id="sqlTabs">
+                    <button class="sql-tab active" data-tab="schema">Schema (DDL)</button>
+                    <button class="sql-tab" data-tab="queries">Sample Queries</button>
+                    <button class="sql-tab" data-tab="views">Views</button>
+                    <button class="sql-tab" data-tab="procedures">Stored Procedures</button>
+                    <button class="sql-tab" data-tab="triggers">Triggers</button>
+                    <button class="sql-tab" data-tab="advanced">Advanced Queries</button>
+                </div>
+
+                <!-- Schema DDL -->
+                <div class="sql-content active" id="sql-schema">
+                    <div class="sql-block-title">📋 Table Definitions (CREATE TABLE)</div>
+                    <div class="sql-block-description">These are the DDL statements that define all 6 tables in the Music Library database, following 3NF normalization.</div>
+                    <div class="sql-code-block"><pre id="sqlSchemaCode"></pre></div>
+                </div>
+
+                <!-- Sample Queries -->
+                <div class="sql-content" id="sql-queries">
+                    <div class="sql-block-title">🔍 Sample DML Queries</div>
+                    <div class="sql-block-description">Common SELECT queries demonstrating JOINs, WHERE, LIKE, GROUP BY, ORDER BY, and aggregate functions.</div>
+                    <div class="sql-code-block"><pre id="sqlQueriesCode"></pre></div>
+                </div>
+
+                <!-- Views -->
+                <div class="sql-content" id="sql-views">
+                    <div class="sql-block-title">👁️ Database Views</div>
+                    <div class="sql-block-description">Pre-defined views that simplify complex JOIN queries into simple SELECTs.</div>
+                    <div class="sql-code-block"><pre id="sqlViewsCode"></pre></div>
+                </div>
+
+                <!-- Procedures -->
+                <div class="sql-content" id="sql-procedures">
+                    <div class="sql-block-title">⚙️ Stored Procedures</div>
+                    <div class="sql-block-description">Encapsulated SQL logic that can be called with parameters, demonstrating procedural SQL.</div>
+                    <div class="sql-code-block"><pre id="sqlProceduresCode"></pre></div>
+                </div>
+
+                <!-- Triggers -->
+                <div class="sql-content" id="sql-triggers">
+                    <div class="sql-block-title">⚡ Triggers</div>
+                    <div class="sql-block-description">Automatic actions that execute on INSERT, UPDATE, or DELETE — demonstrating event-driven SQL.</div>
+                    <div class="sql-code-block"><pre id="sqlTriggersCode"></pre></div>
+                </div>
+
+                <!-- Advanced -->
+                <div class="sql-content" id="sql-advanced">
+                    <div class="sql-block-title">🚀 Advanced SQL Queries</div>
+                    <div class="sql-block-description">Subqueries, CTEs, window functions (ROW_NUMBER, RANK), HAVING, and CASE statements.</div>
+                    <div class="sql-code-block"><pre id="sqlAdvancedCode"></pre></div>
+                </div>
+            </section>
+
+        </main>
+
+        <footer class="footer">
+            Music Library Management System — DBMS Capstone Project &copy; 2026
+        </footer>
+    </div>
+</div>
+
+<!-- ==================== TOAST CONTAINER ==================== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ==================== CONFIRM MODAL ==================== -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+        <div class="modal-icon" id="modalIcon">⚠️</div>
+        <div class="modal-title" id="modalTitle">Confirm Action</div>
+        <div class="modal-message" id="modalMessage">Are you sure you want to proceed?</div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" id="modalConfirmBtn" onclick="confirmModalAction()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== EDIT MODAL ==================== -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-title" id="editModalTitle">Edit Item</div>
+        <div id="editModalBody" style="margin-bottom:24px;"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+            <button class="btn btn-primary" id="editModalSaveBtn">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/database.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
