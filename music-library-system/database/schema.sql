@@ -42,6 +42,10 @@ CREATE TABLE tracks (
     genre_id     INT NOT NULL,
     duration     INT,  -- Duration in seconds
     release_date DATE,
+    stream_url   VARCHAR(500),
+    cover_art    VARCHAR(500),
+    play_count   INT DEFAULT 0,
+    last_played  TIMESTAMP NULL,
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (album_id)  REFERENCES albums(album_id)   ON DELETE CASCADE,
     FOREIGN KEY (artist_id) REFERENCES artists(artist_id)  ON DELETE CASCADE,

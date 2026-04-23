@@ -45,6 +45,12 @@
                 <span>Playlists</span>
             </button>
 
+            <div class="nav-label">Player</div>
+            <button class="nav-item" data-section="nowplaying" id="nav-nowplaying">
+                <span class="nav-icon">🎧</span>
+                <span>Now Playing</span>
+            </button>
+
             <div class="nav-label">Explore</div>
             <button class="nav-item" data-section="search" id="nav-search">
                 <span class="nav-icon">🔍</span>
@@ -113,6 +119,11 @@
                         <div class="stat-label">Total Playlists</div>
                         <div class="stat-value" id="totalPlaylists">0</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱</div>
+                        <div class="stat-label">Total Play Time</div>
+                        <div class="stat-value" id="totalPlayTime" style="font-size:var(--text-xl);">0:00</div>
+                    </div>
                 </div>
 
                 <div class="dashboard-actions">
@@ -122,6 +133,27 @@
                     <button class="btn btn-secondary btn-lg" onclick="resetDatabase()">
                         🔄 Reset Database
                     </button>
+                </div>
+
+                <!-- Recently Played -->
+                <div class="section-divider"></div>
+                <div class="glass-card" id="recentlyPlayedCard" style="display:none;">
+                    <div class="glass-card-header">
+                        <div class="glass-card-title">
+                            <span class="card-icon">🕐</span> Recently Played
+                        </div>
+                    </div>
+                    <div class="track-grid" id="recentlyPlayedGrid"></div>
+                </div>
+
+                <!-- Most Played -->
+                <div class="glass-card" id="mostPlayedCard" style="display:none;">
+                    <div class="glass-card-header">
+                        <div class="glass-card-title">
+                            <span class="card-icon">🔥</span> Most Played
+                        </div>
+                    </div>
+                    <div class="track-grid" id="mostPlayedGrid"></div>
                 </div>
             </section>
 
@@ -292,6 +324,9 @@
                         <div class="glass-card-title">
                             <span class="card-icon">🎶</span> All Tracks
                         </div>
+                        <button class="btn btn-primary" onclick="playAllTracks()" id="btnPlayAllTracks">
+                            ▶ Play All
+                        </button>
                     </div>
                     <div class="table-wrapper">
                         <table id="tracksTable">
@@ -472,6 +507,85 @@
                 </div>
             </section>
 
+            <!-- ==================== NOW PLAYING ==================== -->
+            <section id="nowplaying" class="section">
+                <div class="section-header">
+                    <h2>Now Playing</h2>
+                    <p>Your current track and playback queue</p>
+                </div>
+
+                <div class="np-layout">
+                    <!-- Large Album Art & Controls -->
+                    <div class="np-hero">
+                        <div class="np-art-container">
+                            <div class="np-art" id="npArt">
+                                <img src="" alt="" id="npArtImg" style="display:none;">
+                                <span id="npArtIcon" class="np-art-fallback">🎵</span>
+                            </div>
+                            <div class="np-art-glow" id="npArtGlow"></div>
+                        </div>
+
+                        <div class="np-info">
+                            <div class="np-title" id="npTitle">No track playing</div>
+                            <div class="np-artist" id="npArtist">Select a song to start listening</div>
+                            <div class="np-album" id="npAlbum"></div>
+                            <div class="np-genre" id="npGenre"></div>
+                        </div>
+
+                        <!-- Full-size controls -->
+                        <div class="np-controls">
+                            <button class="np-ctrl-btn" id="npShuffle" title="Shuffle" onclick="player.toggleShuffle()">🔀</button>
+                            <button class="np-ctrl-btn" id="npPrev" title="Previous" onclick="player.prevTrack()">⏮</button>
+                            <button class="np-ctrl-btn" id="npRewind" title="Rewind 10s" onclick="player.rewind(10)">⏪</button>
+                            <button class="np-ctrl-btn np-play-btn" id="npPlayPause" title="Play/Pause" onclick="player.togglePlay()">▶</button>
+                            <button class="np-ctrl-btn" id="npForward" title="Forward 10s" onclick="player.forward(10)">⏩</button>
+                            <button class="np-ctrl-btn" id="npNext" title="Next" onclick="player.nextTrack()">⏭</button>
+                            <button class="np-ctrl-btn" id="npStop" title="Stop" onclick="player.stop()">⏹</button>
+                            <button class="np-ctrl-btn" id="npRepeat" title="Repeat" onclick="player.cycleRepeat()">🔁</button>
+                        </div>
+
+                        <!-- Progress -->
+                        <div class="np-progress">
+                            <span class="np-time" id="npTimeCurrent">0:00</span>
+                            <div class="np-progress-bar-container" id="npProgressContainer">
+                                <div class="np-progress-bar">
+                                    <div class="np-progress-fill" id="npProgressFill"></div>
+                                </div>
+                            </div>
+                            <span class="np-time" id="npTimeTotal">0:00</span>
+                        </div>
+
+                        <!-- Volume -->
+                        <div class="np-volume">
+                            <button class="np-ctrl-btn" id="npMute" onclick="player.toggleMute()">🔊</button>
+                            <input type="range" class="np-volume-slider" id="npVolumeSlider" min="0" max="1" step="0.01" value="0.7" oninput="player.setVolume(this.value)">
+                        </div>
+
+                        <!-- Quick Add to Playlist -->
+                        <div class="np-actions">
+                            <button class="btn btn-primary" onclick="showQuickAddToPlaylist()" id="npAddToPlaylist">
+                                ➕ Add to Playlist
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Queue -->
+                    <div class="np-queue-section">
+                        <div class="glass-card">
+                            <div class="glass-card-header">
+                                <div class="glass-card-title">
+                                    <span class="card-icon">📜</span> Queue
+                                    <span class="badge badge-genre" id="npQueueCount">0 tracks</span>
+                                </div>
+                            </div>
+                            <div class="np-queue-list" id="npQueueList">
+                                <div class="table-empty"><span class="empty-icon">🎵</span>No tracks in queue</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- ==================== SQL QUERIES ==================== -->
             <section id="sql" class="section">
                 <div class="section-header">
@@ -585,8 +699,11 @@
             <div class="control-buttons">
                 <button class="ctrl-btn" id="btnShuffle" title="Shuffle">🔀</button>
                 <button class="ctrl-btn" id="btnPrev" title="Previous">⏮</button>
+                <button class="ctrl-btn" id="btnRewind" title="Rewind 10s">⏪</button>
                 <button class="ctrl-btn play-btn" id="btnPlayPause" title="Play/Pause">▶</button>
+                <button class="ctrl-btn" id="btnForward" title="Forward 10s">⏩</button>
                 <button class="ctrl-btn" id="btnNext" title="Next">⏭</button>
+                <button class="ctrl-btn" id="btnStop" title="Stop">⏹</button>
                 <button class="ctrl-btn" id="btnRepeat" title="Repeat">🔁</button>
             </div>
             <div class="progress-area">
@@ -609,6 +726,30 @@
     </div>
     <!-- Hidden HTML5 Audio Element -->
     <audio id="mainAudio" preload="auto"></audio>
+</div>
+
+<!-- ==================== QUICK ADD TO PLAYLIST MODAL ==================== -->
+<div class="modal-overlay" id="quickPlaylistModal">
+    <div class="modal" style="max-width:420px;">
+        <div class="modal-title">Add to Playlist</div>
+        <div style="margin-bottom:24px;">
+            <div class="form-group">
+                <label>Select Playlist</label>
+                <select id="quickPlaylistSelect">
+                    <option value="">Choose a playlist</option>
+                </select>
+            </div>
+            <div class="section-divider"></div>
+            <div class="form-group">
+                <label>Or Create New Playlist</label>
+                <input type="text" id="quickPlaylistNewName" placeholder="New playlist name...">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeQuickPlaylistModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmQuickAddToPlaylist()">Add</button>
+        </div>
+    </div>
 </div>
 
 <script src="js/database.js"></script>

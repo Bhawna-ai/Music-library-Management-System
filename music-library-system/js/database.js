@@ -46,6 +46,11 @@ class MusicDatabase {
             if (!this.data.idCounters.userId) this.data.idCounters.userId = 1;
             if (!this.data.idCounters.reviewId) this.data.idCounters.reviewId = 1;
             if (!this.data.idCounters.historyId) this.data.idCounters.historyId = 1;
+            // Migration: add play_count and last_played to existing tracks
+            this.data.tracks.forEach(t => {
+                if (t.play_count === undefined) t.play_count = 0;
+                if (t.last_played === undefined) t.last_played = null;
+            });
             this.save();
         }
     }
@@ -225,6 +230,8 @@ class MusicDatabase {
             release_date: releaseDate,
             stream_url: streamUrl,
             cover_art: coverArt,
+            play_count: 0,
+            last_played: null,
             created_at: new Date().toISOString()
         };
         this.data.tracks.push(newTrack);
@@ -554,14 +561,43 @@ class MusicDatabase {
         return stats.sort((a, b) => b.track_count - a.track_count);
     }
 
+    // ==================== PLAYBACK TRACKING ====================
+
+    incrementPlayCount(trackId) {
+        const track = this.data.tracks.find(t => t.track_id === trackId);
+        if (!track) return;
+        track.play_count = (track.play_count || 0) + 1;
+        track.last_played = new Date().toISOString();
+        this.save();
+        return track;
+    }
+
+    getRecentlyPlayed(limit = 8) {
+        return [...this.data.tracks]
+            .filter(t => t.last_played)
+            .sort((a, b) => new Date(b.last_played) - new Date(a.last_played))
+            .slice(0, limit)
+            .map(t => this.enrichTrackData(t));
+    }
+
+    getMostPlayed(limit = 8) {
+        return [...this.data.tracks]
+            .filter(t => (t.play_count || 0) > 0)
+            .sort((a, b) => (b.play_count || 0) - (a.play_count || 0))
+            .slice(0, limit)
+            .map(t => this.enrichTrackData(t));
+    }
+
     // ==================== DASHBOARD STATS ====================
 
     getDashboardStats() {
+        const totalPlayTime = this.data.tracks.reduce((sum, t) => sum + ((t.play_count || 0) * (t.duration || 0)), 0);
         return {
             totalArtists: this.data.artists.length,
             totalTracks: this.data.tracks.length,
             totalAlbums: this.data.albums.length,
-            totalPlaylists: this.data.playlists.length
+            totalPlaylists: this.data.playlists.length,
+            totalPlayTime: totalPlayTime
         };
     }
 
