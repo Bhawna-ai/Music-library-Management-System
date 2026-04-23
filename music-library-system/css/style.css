@@ -292,6 +292,7 @@ body::before {
     flex-direction: column;
     min-height: 100vh;
     transition: margin-left var(--transition-slow);
+    padding-bottom: 90px; /* Space for fixed player bar */
 }
 
 /* Top Bar */
@@ -1351,15 +1352,282 @@ table td .btn {
     }
 }
 
-/* ----- Sidebar overlay for mobile ----- */
-.sidebar-overlay {
-    display: none;
+/* ---------- Music Player Bar ---------- */
+.player-bar {
     position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 150;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 90px;
+    background: rgba(10, 10, 18, 0.85);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-top: 1px solid var(--border-glass);
+    z-index: 1000;
+    padding: 0 var(--space-xl);
+    display: flex;
+    align-items: center;
+    transition: transform 0.3s ease;
+    transform: translateY(100%);
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.4);
 }
 
-.sidebar-overlay.active {
-    display: block;
+.player-container {
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 280px 1fr 200px;
+    align-items: center;
+    gap: var(--space-xl);
 }
+
+/* Track Info */
+.current-track-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    overflow: hidden;
+}
+
+.track-art {
+    width: 52px;
+    height: 52px;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    border: 1px solid var(--border-glass);
+    overflow: hidden;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+}
+
+.track-art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.track-details {
+    overflow: hidden;
+}
+
+.track-title {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.track-artist {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Controls */
+.player-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-buttons {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+}
+
+.ctrl-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.ctrl-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-card);
+}
+
+.ctrl-btn.play-btn {
+    width: 44px;
+    height: 44px;
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    font-size: 1.1rem;
+    padding-left: 8px; /* Offset for play icon centering */
+}
+
+.ctrl-btn.play-btn.playing {
+    padding-left: 6px;
+}
+
+.ctrl-btn.play-btn:hover {
+    transform: scale(1.08);
+    background: white;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.ctrl-btn.active {
+    color: var(--primary-light);
+}
+
+/* Progress */
+.progress-area {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.time-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 32px;
+    font-variant-numeric: tabular-nums;
+}
+
+.progress-bar-container {
+    flex: 1;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    position: relative;
+}
+
+.progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--primary), var(--primary-light));
+    border-radius: 2px;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    background: white;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.2s;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.progress-bar-container:hover .progress-fill::after {
+    opacity: 1;
+}
+
+.progress-bar-container:hover .progress-bar {
+    height: 6px;
+}
+
+/* Volume/Actions */
+.player-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 140px;
+}
+
+.volume-slider {
+    flex: 1;
+    height: 4px;
+    accent-color: var(--primary-light);
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+/* In-table play button */
+.btn-play-inline {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-glow);
+    color: var(--primary-light);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    cursor: pointer;
+    margin-right: var(--space-sm);
+    transition: all var(--transition-fast);
+    padding-left: 2px;
+}
+
+.btn-play-inline:hover {
+    background: var(--primary);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+/* Mobile Adjustments for Player */
+@media (max-width: 992px) {
+    .player-container {
+        grid-template-columns: 1fr 1.5fr;
+    }
+    .player-actions {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .player-bar {
+        height: auto;
+        padding: var(--space-md);
+    }
+    
+    .player-container {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+    
+    .current-track-info {
+        justify-content: center;
+    }
+    
+    .progress-area {
+        max-width: 100%;
+    }
+}
+

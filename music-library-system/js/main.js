@@ -4,13 +4,13 @@
 // ==================== SECTION NAVIGATION ====================
 
 const pageTitles = {
-    dashboard: { title: 'Dashboard', sub: 'Overview of your music library' },
+    dashboard: { title: 'Dashboard', sub: 'Overview of your Aether system' },
     artists: { title: 'Artists', sub: 'Manage your music artists' },
     albums: { title: 'Albums', sub: 'Organize album collections' },
     tracks: { title: 'Tracks', sub: 'Manage individual songs' },
     playlists: { title: 'Playlists', sub: 'Create and manage playlists' },
     search: { title: 'Search', sub: 'Find tracks, artists, and genres' },
-    sql: { title: 'SQL Queries', sub: 'All SQL used in this project' }
+    sql: { title: 'SQL & Schema', sub: 'The engine behind Aether' }
 };
 
 function showSection(sectionId) {
@@ -160,6 +160,177 @@ function animateCounter(element, target) {
     requestAnimationFrame(step);
 }
 
+// ==================== AUDIO PLAYER LOGIC ====================
+
+const player = {
+    currentTrack: null,
+    queue: [],
+    currentIndex: -1,
+    audio: null,
+    isPlaying: false,
+    isShuffle: false,
+    repeatMode: 'none', // none, one, all
+
+    init() {
+        this.audio = document.getElementById('mainAudio');
+        if (!this.audio) return;
+        this.setupEventListeners();
+    },
+
+    setupEventListeners() {
+        const playBtn = document.getElementById('btnPlayPause');
+        playBtn.addEventListener('click', () => this.togglePlay());
+
+        document.getElementById('btnNext').addEventListener('click', () => this.nextTrack());
+        document.getElementById('btnPrev').addEventListener('click', () => this.prevTrack());
+        
+        document.getElementById('btnShuffle').addEventListener('click', (e) => {
+            this.isShuffle = !this.isShuffle;
+            e.currentTarget.classList.toggle('active', this.isShuffle);
+            showToast(`Shuffle ${this.isShuffle ? 'ON' : 'OFF'}`, 'info');
+        });
+
+        document.getElementById('btnRepeat').addEventListener('click', (e) => {
+            const btn = e.currentTarget;
+            if (this.repeatMode === 'none') {
+                this.repeatMode = 'all';
+                btn.innerHTML = '🔁';
+                btn.classList.add('active');
+            } else if (this.repeatMode === 'all') {
+                this.repeatMode = 'one';
+                btn.innerHTML = '🔂';
+            } else {
+                this.repeatMode = 'none';
+                btn.innerHTML = '🔁';
+                btn.classList.remove('active');
+            }
+            showToast(`Repeat Mode: ${this.repeatMode.toUpperCase()}`, 'info');
+        });
+
+        this.audio.addEventListener('timeupdate', () => this.updateProgress());
+        this.audio.addEventListener('ended', () => this.onTrackEnded());
+
+        const progressContainer = document.getElementById('progressContainer');
+        progressContainer.addEventListener('click', (e) => {
+            const width = progressContainer.clientWidth;
+            const clickX = e.offsetX;
+            const duration = this.audio.duration;
+            if (duration) this.audio.currentTime = (clickX / width) * duration;
+        });
+
+        const volSlider = document.getElementById('volumeSlider');
+        volSlider.addEventListener('input', (e) => {
+            this.audio.volume = e.target.value;
+        });
+
+        document.getElementById('btnMute').addEventListener('click', (e) => {
+            this.audio.muted = !this.audio.muted;
+            e.currentTarget.innerHTML = this.audio.muted ? '🔇' : '🔊';
+        });
+    },
+
+    playTrack(trackId, trackList = null) {
+        const track = db.getTrackById(trackId);
+        if (!track) return;
+
+        if (trackList) {
+            this.queue = trackList;
+            this.currentIndex = this.queue.findIndex(t => t.track_id === trackId);
+        }
+
+        this.currentTrack = track;
+        
+        // Use stream_url if exists, otherwise a placeholder demo URL
+        const streamUrl = track.stream_url || `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-${(track.track_id % 15) + 1}.mp3`;
+        
+        this.audio.src = streamUrl;
+        this.updateUI();
+        this.audio.play().catch(err => {
+            console.error("Playback failed:", err);
+            showToast("Playback failed. Browser may block auto-play.", "error");
+        });
+        
+        this.isPlaying = true;
+        document.getElementById('btnPlayPause').innerHTML = '⏸';
+        document.getElementById('btnPlayPause').classList.add('playing');
+        
+        // Show player bar with animation
+        const playerBar = document.getElementById('playerBar');
+        playerBar.style.transform = 'translateY(0)';
+    },
+
+    togglePlay() {
+        if (!this.currentTrack) return;
+        if (this.audio.paused) {
+            this.audio.play();
+            this.isPlaying = true;
+            document.getElementById('btnPlayPause').innerHTML = '⏸';
+        } else {
+            this.audio.pause();
+            this.isPlaying = false;
+            document.getElementById('btnPlayPause').innerHTML = '▶';
+        }
+    },
+
+    nextTrack() {
+        if (this.queue.length === 0) return;
+        if (this.isShuffle) {
+            this.currentIndex = Math.floor(Math.random() * this.queue.length);
+        } else {
+            this.currentIndex = (this.currentIndex + 1) % this.queue.length;
+        }
+        this.playTrack(this.queue[this.currentIndex].track_id);
+    },
+
+    prevTrack() {
+        if (this.queue.length === 0) return;
+        this.currentIndex = (this.currentIndex - 1 + this.queue.length) % this.queue.length;
+        this.playTrack(this.queue[this.currentIndex].track_id);
+    },
+
+    updateUI() {
+        if (!this.currentTrack) return;
+        const artist = db.getArtistById(this.currentTrack.artist_id);
+        document.getElementById('playerTrackTitle').textContent = this.currentTrack.track_title;
+        document.getElementById('playerTrackArtist').textContent = artist ? artist.artist_name : 'Unknown Artist';
+        
+        const artImg = document.getElementById('playerTrackArtImg');
+        const artIcon = document.getElementById('playerTrackArtIcon');
+        
+        if (this.currentTrack.cover_art) {
+            artImg.src = this.currentTrack.cover_art;
+            artImg.style.display = 'block';
+            artIcon.style.display = 'none';
+        } else {
+            artImg.style.display = 'none';
+            artIcon.style.display = 'block';
+        }
+    },
+
+    updateProgress() {
+        const { currentTime, duration } = this.audio;
+        if (isNaN(duration) || duration === 0) return;
+        
+        const percent = (currentTime / duration) * 100;
+        document.getElementById('progressFill').style.width = `${percent}%`;
+        
+        document.getElementById('timeCurrent').textContent = formatDuration(Math.floor(currentTime));
+        document.getElementById('timeTotal').textContent = formatDuration(Math.floor(duration));
+    },
+
+    onTrackEnded() {
+        if (this.repeatMode === 'one') {
+            this.audio.currentTime = 0;
+            this.audio.play();
+        } else if (this.repeatMode === 'all' || (this.currentIndex < this.queue.length - 1)) {
+            this.nextTrack();
+        } else {
+            this.isPlaying = false;
+            document.getElementById('btnPlayPause').innerHTML = '▶';
+        }
+    }
+};
+
 // ==================== DASHBOARD ====================
 
 function updateDashboard() {
@@ -176,8 +347,7 @@ function resetDatabase() {
         'This will permanently delete all data including artists, albums, tracks, and playlists. This action cannot be undone.',
         () => {
             db.reset();
-            updateDashboard();
-            showToast('Database has been reset to empty state', 'info', 'Database Reset');
+            window.location.reload();
         }
     );
 }
@@ -221,46 +391,46 @@ function loadSampleData() {
     const albumOKComputer = db.addAlbum('OK Computer', artistRadiohead.artist_id, 1997);
 
     // Add tracks — Beatles
-    db.addTrack('Come Together', albumAbbey.album_id, artistBeatles.artist_id, genreRock.genre_id, 259, '1969-09-26');
-    db.addTrack('Something', albumAbbey.album_id, artistBeatles.artist_id, genreRock.genre_id, 183, '1969-09-26');
-    db.addTrack('Here Comes the Sun', albumAbbey.album_id, artistBeatles.artist_id, genreRock.genre_id, 185, '1969-09-26');
-    db.addTrack('Let It Be', albumLetItBe.album_id, artistBeatles.artist_id, genreRock.genre_id, 243, '1970-03-06');
+    db.addTrack('Come Together', albumAbbey.album_id, artistBeatles.artist_id, genreRock.genre_id, 259, '1969-09-26', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400&h=400&fit=crop');
+    db.addTrack('Something', albumAbbey.album_id, artistBeatles.artist_id, genreRock.genre_id, 183, '1969-09-26', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', 'https://images.unsplash.com/photo-1514525253344-91a6cf940ba0?w=400&h=400&fit=crop');
+    db.addTrack('Here Comes the Sun', albumAbbey.album_id, artistBeatles.artist_id, genreRock.genre_id, 185, '1969-09-26', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', 'https://images.unsplash.com/photo-1502444330042-d1a1ddf9bb5b?w=400&h=400&fit=crop');
+    db.addTrack('Let It Be', albumLetItBe.album_id, artistBeatles.artist_id, genreRock.genre_id, 243, '1970-03-06', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop');
 
     // Taylor Swift
-    db.addTrack('Look What You Made Me Do', albumReputation.album_id, artistTaylor.artist_id, genrePop.genre_id, 211, '2017-08-11');
-    db.addTrack('Delicate', albumReputation.album_id, artistTaylor.artist_id, genrePop.genre_id, 232, '2017-12-08');
-    db.addTrack('Getaway Car', albumReputation.album_id, artistTaylor.artist_id, genrePop.genre_id, 241, '2017-08-11');
-    db.addTrack('Shake It Off', album1989.album_id, artistTaylor.artist_id, genrePop.genre_id, 219, '2014-08-18');
-    db.addTrack('Blank Space', album1989.album_id, artistTaylor.artist_id, genrePop.genre_id, 231, '2014-11-10');
+    db.addTrack('Look What You Made Me Do', albumReputation.album_id, artistTaylor.artist_id, genrePop.genre_id, 211, '2017-08-11', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3', 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=400&h=400&fit=crop');
+    db.addTrack('Delicate', albumReputation.album_id, artistTaylor.artist_id, genrePop.genre_id, 232, '2017-12-08', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=400&fit=crop');
+    db.addTrack('Getaway Car', albumReputation.album_id, artistTaylor.artist_id, genrePop.genre_id, 241, '2017-08-11', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3', 'https://images.unsplash.com/photo-1459749411177-042180cefa7f?w=400&h=400&fit=crop');
+    db.addTrack('Shake It Off', album1989.album_id, artistTaylor.artist_id, genrePop.genre_id, 219, '2014-08-18', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3', 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&h=400&fit=crop');
+    db.addTrack('Blank Space', album1989.album_id, artistTaylor.artist_id, genrePop.genre_id, 231, '2014-11-10', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3', 'https://images.unsplash.com/photo-1471478331149-c72f17e33c73?w=400&h=400&fit=crop');
 
     // Jazz — Miles Davis
-    db.addTrack('So What', albumKind.album_id, artistMiles.artist_id, genreJazz.genre_id, 567, '1959-03-02');
-    db.addTrack('Freddie Freeloader', albumKind.album_id, artistMiles.artist_id, genreJazz.genre_id, 558, '1959-03-02');
-    db.addTrack('Blue in Green', albumKind.album_id, artistMiles.artist_id, genreJazz.genre_id, 481, '1959-03-02');
+    db.addTrack('So What', albumKind.album_id, artistMiles.artist_id, genreJazz.genre_id, 567, '1959-03-02', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3', 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=400&h=400&fit=crop');
+    db.addTrack('Freddie Freeloader', albumKind.album_id, artistMiles.artist_id, genreJazz.genre_id, 558, '1959-03-02', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3', 'https://images.unsplash.com/photo-1514525253344-91a6cf940ba0?w=400&h=400&fit=crop');
+    db.addTrack('Blue in Green', albumKind.album_id, artistMiles.artist_id, genreJazz.genre_id, 481, '1959-03-02', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3', 'https://images.unsplash.com/photo-1485579149621-3123dd979885?w=400&h=400&fit=crop');
 
     // Classical — Mozart
-    db.addTrack('Lacrimosa', albumRequiem.album_id, artistMozart.artist_id, genreClassical.genre_id, 602, '1791-01-01');
-    db.addTrack('Dies Irae', albumRequiem.album_id, artistMozart.artist_id, genreClassical.genre_id, 720, '1791-01-01');
+    db.addTrack('Lacrimosa', albumRequiem.album_id, artistMozart.artist_id, genreClassical.genre_id, 602, '1791-01-01', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3', 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=400&fit=crop');
+    db.addTrack('Dies Irae', albumRequiem.album_id, artistMozart.artist_id, genreClassical.genre_id, 720, '1791-01-01', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3', 'https://images.unsplash.com/photo-1465821185615-9344491ebb16?w=400&h=400&fit=crop');
 
     // Hip-Hop — Drake
-    db.addTrack('In My Feelings', albumScorpion.album_id, artistDrake.artist_id, genreHipHop.genre_id, 226, '2018-06-29');
-    db.addTrack('Hotline Bling', albumScorpion.album_id, artistDrake.artist_id, genreHipHop.genre_id, 207, '2018-06-29');
-    db.addTrack('God\'s Plan', albumScorpion.album_id, artistDrake.artist_id, genreHipHop.genre_id, 198, '2018-01-19');
+    db.addTrack('In My Feelings', albumScorpion.album_id, artistDrake.artist_id, genreHipHop.genre_id, 226, '2018-06-29', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3', 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=400&h=400&fit=crop');
+    db.addTrack('Hotline Bling', albumScorpion.album_id, artistDrake.artist_id, genreHipHop.genre_id, 207, '2018-06-29', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3', 'https://images.unsplash.com/photo-1514525253344-91a6cf940ba0?w=400&h=400&fit=crop');
+    db.addTrack('God\'s Plan', albumScorpion.album_id, artistDrake.artist_id, genreHipHop.genre_id, 198, '2018-01-19', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop');
 
     // Adele
-    db.addTrack('Rolling in the Deep', album21.album_id, artistAdele.artist_id, genrePop.genre_id, 228, '2010-11-29');
-    db.addTrack('Someone Like You', album21.album_id, artistAdele.artist_id, genrePop.genre_id, 285, '2011-01-24');
-    db.addTrack('Set Fire to the Rain', album21.album_id, artistAdele.artist_id, genrePop.genre_id, 242, '2011-07-04');
+    db.addTrack('Rolling in the Deep', album21.album_id, artistAdele.artist_id, genrePop.genre_id, 228, '2010-11-29', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=400&fit=crop');
+    db.addTrack('Someone Like You', album21.album_id, artistAdele.artist_id, genrePop.genre_id, 285, '2011-01-24', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', 'https://images.unsplash.com/photo-1459749411177-042180cefa7f?w=400&h=400&fit=crop');
+    db.addTrack('Set Fire to the Rain', album21.album_id, artistAdele.artist_id, genrePop.genre_id, 242, '2011-07-04', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&h=400&fit=crop');
 
     // The Weeknd
-    db.addTrack('Blinding Lights', albumAfterHours.album_id, artistWeeknd.artist_id, genreRnB.genre_id, 200, '2019-11-29');
-    db.addTrack('After Hours', albumAfterHours.album_id, artistWeeknd.artist_id, genreRnB.genre_id, 361, '2020-02-19');
-    db.addTrack('Save Your Tears', albumAfterHours.album_id, artistWeeknd.artist_id, genreRnB.genre_id, 215, '2020-03-20');
+    db.addTrack('Blinding Lights', albumAfterHours.album_id, artistWeeknd.artist_id, genreRnB.genre_id, 200, '2019-11-29', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3', 'https://images.unsplash.com/photo-1471478331149-c72f17e33c73?w=400&h=400&fit=crop');
+    db.addTrack('After Hours', albumAfterHours.album_id, artistWeeknd.artist_id, genreRnB.genre_id, 361, '2020-02-19', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3', 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=400&h=400&fit=crop');
+    db.addTrack('Save Your Tears', albumAfterHours.album_id, artistWeeknd.artist_id, genreRnB.genre_id, 215, '2020-03-20', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3', 'https://images.unsplash.com/photo-1514525253344-91a6cf940ba0?w=400&h=400&fit=crop');
 
     // Radiohead
-    db.addTrack('Paranoid Android', albumOKComputer.album_id, artistRadiohead.artist_id, genreIndie.genre_id, 384, '1997-05-26');
-    db.addTrack('Karma Police', albumOKComputer.album_id, artistRadiohead.artist_id, genreIndie.genre_id, 264, '1997-08-25');
-    db.addTrack('No Surprises', albumOKComputer.album_id, artistRadiohead.artist_id, genreIndie.genre_id, 229, '1998-01-12');
+    db.addTrack('Paranoid Android', albumOKComputer.album_id, artistRadiohead.artist_id, genreIndie.genre_id, 384, '1997-05-26', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3', 'https://images.unsplash.com/photo-1485579149621-3123dd979885?w=400&h=400&fit=crop');
+    db.addTrack('Karma Police', albumOKComputer.album_id, artistRadiohead.artist_id, genreIndie.genre_id, 264, '1997-08-25', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3', 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=400&fit=crop');
+    db.addTrack('No Surprises', albumOKComputer.album_id, artistRadiohead.artist_id, genreIndie.genre_id, 229, '1998-01-12', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3', 'https://images.unsplash.com/photo-1465821185615-9344491ebb16?w=400&h=400&fit=crop');
 
     // Create playlists
     const playlistRock = db.addPlaylist('Rock Classics', 'Timeless rock anthems from the greatest bands');
@@ -516,7 +686,10 @@ function displayTracks() {
         const row = tbody.insertRow();
         row.innerHTML = `
             <td>${track.track_id}</td>
-            <td><strong>${escapeHtml(track.track_title)}</strong></td>
+            <td>
+                <button class="btn-play-inline" onclick="player.playTrack(${track.track_id}, db.getTracks())" title="Play Now">▶</button>
+                <strong>${escapeHtml(track.track_title)}</strong>
+            </td>
             <td>${artist ? escapeHtml(artist.artist_name) : 'Unknown'}</td>
             <td>${album ? escapeHtml(album.album_name) : 'Unknown'}</td>
             <td>${genre ? `<span class="badge badge-genre">${escapeHtml(genre.genre_name)}</span>` : 'Unknown'}</td>
@@ -668,7 +841,10 @@ function showPlaylistDetails(playlistId) {
             const duration = formatDuration(track.duration);
             const row = tbody.insertRow();
             row.innerHTML = `
-                <td><strong>${escapeHtml(track.track_title)}</strong></td>
+                <td>
+                    <button class="btn-play-inline" onclick="player.playTrack(${track.track_id}, db.getPlaylistTracks(${playlistId}))" title="Play Now">▶</button>
+                    <strong>${escapeHtml(track.track_title)}</strong>
+                </td>
                 <td>${artist ? escapeHtml(artist.artist_name) : 'Unknown'}</td>
                 <td>${duration}</td>
                 <td>
@@ -756,7 +932,10 @@ function buildSearchResultsTable(results) {
     let html = '<table><thead><tr><th>Title</th><th>Artist</th><th>Album</th><th>Genre</th><th>Duration</th></tr></thead><tbody>';
     results.forEach(track => {
         html += `<tr>
-            <td><strong>${escapeHtml(track.track_title)}</strong></td>
+            <td>
+                <button class="btn-play-inline" onclick="player.playTrack(${track.track_id}, null)" title="Play Now">▶</button>
+                <strong>${escapeHtml(track.track_title)}</strong>
+            </td>
             <td>${escapeHtml(track.artist_name)}</td>
             <td>${escapeHtml(track.album_name)}</td>
             <td><span class="badge badge-genre">${escapeHtml(track.genre_name)}</span></td>
@@ -829,7 +1008,7 @@ function handleGlobalSearch(event) {
 function renderSQLQueries() {
     // Schema DDL
     document.getElementById('sqlSchemaCode').innerHTML = highlightSQL(`-- ============================================
--- Music Library Management System
+-- Aether - Modern Music System
 -- Database Schema (DDL)
 -- ============================================
 
@@ -1540,4 +1719,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial data load
     populateAllDropdowns();
     updateDashboard();
+    
+    // Initialize Player
+    player.init();
 });

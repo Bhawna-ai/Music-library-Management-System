@@ -214,7 +214,7 @@ class MusicDatabase {
 
     // ==================== TRACK OPERATIONS ====================
 
-    addTrack(trackTitle, albumId, artistId, genreId, duration = 0, releaseDate = null) {
+    addTrack(trackTitle, albumId, artistId, genreId, duration = 0, releaseDate = null, streamUrl = '', coverArt = '') {
         const newTrack = {
             track_id: this.data.idCounters.trackId++,
             track_title: trackTitle,
@@ -223,6 +223,8 @@ class MusicDatabase {
             genre_id: genreId,
             duration: duration,
             release_date: releaseDate,
+            stream_url: streamUrl,
+            cover_art: coverArt,
             created_at: new Date().toISOString()
         };
         this.data.tracks.push(newTrack);
@@ -259,6 +261,8 @@ class MusicDatabase {
         if (updates.genre_id !== undefined) track.genre_id = updates.genre_id;
         if (updates.duration !== undefined) track.duration = updates.duration;
         if (updates.release_date !== undefined) track.release_date = updates.release_date;
+        if (updates.stream_url !== undefined) track.stream_url = updates.stream_url;
+        if (updates.cover_art !== undefined) track.cover_art = updates.cover_art;
         this.save();
         return track;
     }
